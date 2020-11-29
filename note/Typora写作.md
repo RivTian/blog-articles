@@ -31,6 +31,16 @@ topics:
 
 
 
+### 图片居中
+
+样例示意
+
+<div align=center><img src="https://gitee.com//riotian/blogimage/raw/master/img/20201123190654.gif"/></div>
+
+```html
+<div align=center><img src="https://gitee.com//riotian/blogimage/raw/master/img/20201123190654.gif"/></div>
+```
+
 
 
 ## 同步到GitHub

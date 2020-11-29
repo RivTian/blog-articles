@@ -300,6 +300,36 @@ int main() {
 
 > VS Code 代码格式化工具clang-format：[click here](./VS Code 代码格式化工具clang-format.md)
 
+### 字体修改
+
+> 方法转自：[wutaoの博客](https://wutao18.github.io/2019/10/12/Visual-Studio-Code-%E4%BF%AE%E6%94%B9%E5%AD%97%E4%BD%93/)
+
+下载安装想要更换的字体，这里以 Fira Code 字体为例。
+
+Fira Code 字体的下载地址：[https://github.com/tonsky/FiraCode](https://github.com/tonsky/FiraCode)
+
+![](https://cdn.jsdelivr.net/gh/Kanna-jiahe/blogimage/img/20201111192025.png)
+
+下载解压后安装字体，windows 可以选择 ttf 文件夹，安装里面的全部字体。
+
+打开 VSC，点击左下角的图标，选择 Settings，然后搜索font，在 Font Family 加上 “Fira Code”。
+
+![](https://cdn.jsdelivr.net/gh/Kanna-jiahe/blogimage/img/20201111192032.png)
+
+重启 VS code 就能看到字体设置成功了。
+
+![](https://cdn.jsdelivr.net/gh/Kanna-jiahe/blogimage/img/20201111192038.png)
+
+> 注：
+>
+> settings 中 Font Size 可以修改字体大小
+>
+> Font Ligatures 启用连字
+>
+> Font Size 控制字号
+>
+> Font Weight 控制字体粗细
+
 ### 后日谈
 
 为什么要配置 Windows VS Code 的 C/C++ 开发环境呢，总的来说还是想要轻量。目前为止的 C 程序完全用不着 VS 这么庞大的 IDE 写（只有在认知实习任务中被要求写地铁项目），尽管刷刷 ACM 题VS很爽。但其实只需要轻量的 VS Code （颜值高😂） 就够了（而且比赛中是不被允许使用VS的）。
