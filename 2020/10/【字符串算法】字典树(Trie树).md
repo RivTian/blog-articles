@@ -9,213 +9,310 @@ topics:
   - 
 ---
 
-## 什么是字典树
+### 字典树
 
-#### 基本概念
+　　字典树，又称单词查找树，`Trie`树，是一种树形结构，是一种哈希树的变种。典型应用是用于统计，排序和保存大量的字符串（但不仅限于字符串），所以经常被搜索引擎系统用于文本词频统计。它的优点是：利用字符串的公共前缀来节约存储空间，最大限度地减少无谓的字符串比较，查询效率比哈希表高。
+　　字典树与字典很相似,当你要查一个单词是不是在字典树中,首先看单词的第一个字母是不是在字典的第一层,如果不在,说明字典树里没有该单词,如果在就在该字母的孩子节点里找是不是有单词的第二个字母,没有说明没有该单词,有的话用同样的方法继续查找.字典树不仅可以用来储存字母,也可以储存数字等其它数据。
 
-字典树，又称为单词查找树或Tire树，是一种树形结构，它是一种哈希树的变种，用于存储字符串及其相关信息。
-
-![](https://gitee.com//riotian/blogimage/raw/master/img/20201008100313.jpeg)
-
-#### 基本性质
-
-> 1.根节点不包含字符，除根节点外的每一个子节点都包含一个字符
-> 2.从根节点到某一节点。从根节点到该节点路径上经过的字符连接起来，就是该节点对应的字符串
-> 3.同一个节点的所有子节点包含的字符都不相同
-
-#### 运用方面
-
-典型应用是用于统计，排序和保存大量的字符串(不仅限于字符串)，经常被搜索引擎系统用于文本词频统计。
-
-#### 优点缺点
-
-字典树是经典的空间换时间的数据结构，利用字符串的公共前缀来减少查询时间，最大限度的减少无谓的字符串比较，查询效率据说比哈希树高。
-
-但缺点就很显然了，就是空间比较大……
-
-## 举个栗子
-
-什么不太了解，没事，让我们来结合栗子来分析一下！
-我们首先读入四个字符串
-
-> ba
-> b
-> band
-> abc
-
-在没有读入前，我们有一个空空的根节点；
-
-![](https://gitee.com//riotian/blogimage/raw/master/img/20201008100431.jpeg)
-
-接着我们插入单词ba；
-
-![](https://gitee.com//riotian/blogimage/raw/master/img/20201008100444.jpeg)
-
-接着插入单词b，由于根节点有连向b的子节点，所以只需路径上的s++就好了；
-
-![](https://cdn.jsdelivr.net/gh/Kanna-jiahe/blogimage/img/20201023155606.jpeg)
-
-接着插入单词bank，ba之前就有，只需s++，而nk需要在ba后添加子节点完成存储；
-
-![](https://gitee.com//riotian/blogimage/raw/master/img/20201008100453.jpeg)
-
-最后插入单词abc；
-
-![](https://gitee.com//riotian/blogimage/raw/master/img/20201008100504.jpeg)
-
-## 如何构造字典树
-
-我们来结合程序一步一步来构造这棵可爱的字典树吧！！
-
-#### 构造节点
-
-我们需要运用struct来存储字典树上每个节点的信息：
+**Trie的数据结构定义：**
 
 ```cpp
-struct node
-{
-    int s,v[27]，val;
-    node()
-    {
-        s=0;
-        memset(v,-1,sizeof(v));
-    }
-}t[410000];
+#define MAX 26
+typedef struct Trie {
+    Trie* next[MAX];
+    int v;  //根据需要变化
+};
+
+Trie* root;
 ```
 
-s是用来存储有多少个单词进过了这个节点，v是用来存储这个点从a到z的儿子节点分别在哪，而val则是存储这个节点的权值，至于权值代表什么，就要依照题目灵活变换了。
+　　next是表示每层有多少种类的数，如果只是小写字母，则26即可，若改为大小写字母，则是52，若再加上数字，则是62了，这里根据题意来确定。 v可以表示一个字典树到此有多少相同前缀的数目，这里根据需要应当学会自由变化。
 
-#### 构造字典树
+　　Trie的查找（最主要的操作）：
 
-我们先抛出程序：
+　　(1) 每次从根结点开始一次搜索；
+　　(2) 取得要查找关键词的第一个字母，并根据该字母选择对应的子树并转到该子树继续进行检索； 　　
 
-```cpp
-int bt(int root)
-{
-    int len=strlen(a+1);int x=root;
-    for(int i=1;i<=len;i++)
-    {
-        int y=a[i]-'a'+1;//将a^z转化为1^26
-        if(t[x].v[y]==-1)t[x].v[y]=++tot;
-        x=t[x].v[y];t[x].s++;
+​	   (3) 在相应的子树上，取得要查找关键词的第二个字母,并进一步选择对应的子树进行检索。 　　 　   (4) 迭代过程……
+　   (5) 在某个结点处，关键词的所有字母已被取出，则读取附在该结点上的信息，即完成查找。
+
+　　这里给出生成字典树和查找的模版：
+
+**生成字典树：**
+
+```c++
+void createTrie(char* str) {
+    int len = strlen(str);
+    Trie *p = root, *q;
+    for (int i = 0; i < len; ++i) {
+        int id = str[i] - '0';
+        if (p->next[id] == NULL) {
+            q = (Trie*)malloc(sizeof(Trie));
+            q->v = 1;  //初始v==1
+            for (int j = 0; j < MAX; ++j)
+                q->next[j] = NULL;
+            p->next[id] = q;
+            p = p->next[id];
+        } else {
+            p->next[id]->v++;
+            p = p->next[id];
+        }
     }
+    p->v = -1;  //若为结尾，则将v改成-1表示
 }
 ```
 
-首先我们先读入了一个字符串a，它的长度为len；
-接着我们对于它的字符进行循环处理，当我们处理到这个字符串的第i个字符的时候，我们要进行分类讨论——
+**查找:**
 
-> 我们用x存储第i-1个字符在字典树中的位置；
-> 当我的前一个字符没有指向我的字符的时候，我就tot++，在字典树中开创一个新的空间，我就把自己放在这个空间里；
->
-> 如果我的前一个字符有指向我的字符的子节点时，我就放心地走到那个子节点就好了；最后记得更新x的值为当前处理的子节点的位置，并且s++，表示又多了一个单词进过了这个节点，以及完成val的修改之类的工作；
->
-> i++，进入下一重循环！
+```c++
+int findTrie(char* str) {
+    int len = strlen(str);
+    Trie* p = root;
+    for (int i = 0; i < len; ++i) {
+        int id = str[i] - '0';
+        p = p->next[id];
+        if (p == NULL)  //若为空集，表示不存以此为前缀的串
+            return 0;
+        if (p->v == -1)  //字符集中已有串是此串的前缀
+            return -1;
+    }
+    return -1;  //此串是字符集中某串的前缀
+}
+```
 
-这样一棵完整的字典树就出来了！
 
-## 模板&&模板题
 
-> 【caioj 1463】统计前缀
-> 题目描述
-> 【题意】
-> 给出很多个字符串(只有小写字母组成)和很多个提问串，统计出以某个提问串为前缀的字符串数量(单词本身也是自己的前缀).
-> 【输入格式】
-> 输入n,表示有n个字符串(n<=10000)
-> 接下来n行,每行一个字符串,字符串度不超过10
-> 输入m,表示有m个提问(m<=100)
-> 第二部分是一连串的提问,每行一个提问,每个提问都是一个字符串.
-> 【输出格式】
-> 对于每个提问,给出以该提问为前缀的字符串的数量.
-> 【样例输入】
-> 5
-> banana
-> band
-> bee
-> absolute
-> acm
-> 4
-> ba
-> b
-> band
-> abc
-> 【样例输出】
-> 2
-> 3
-> 1
-> 0
+#### 例题
 
-就是一道裸题，查询时输出对应节点的s就好了；
+- [hdu 1251 统计难题](http://acm.hdu.edu.cn/showproblem.php?pid=1251)
 
-附上代码：
+　　题意：在给出的字符串中找出由给出的字符串中出现过的两个串拼成的字符串。
+　　字典树的模板题，先建字典数，然后再查询每个给定的单词。。
 
-```cpp
-#include<bits/stdc++.h>
+**代码如下:**
+
+```c++
+#include <string.h>
+#include <iostream>
 using namespace std;
-struct node
-{
-    int s,v[27];
-    node()
-    {
-        s=0;
-        memset(v,-1,sizeof(v));
-    }
-}t[410000];
-char a[410000];
-int i,j,k,m,n,tot,js,jl;
 
-int bt(int root)
-{
-    int len=strlen(a+1);int x=root;
-    for(int i=1;i<=len;i++)
-    {
-        int y=a[i]-'a'+1;
-        if(t[x].v[y]==-1)t[x].v[y]=++tot;
-        x=t[x].v[y];t[x].s++;
+const int sonsum = 26, base = 'a';
+char s1[12], ss[12];
+
+struct Trie {
+    int num;
+    bool flag;
+    struct Trie* son[sonsum];
+    Trie() {
+        num = 1;
+        flag = false;
+        memset(son, NULL, sizeof(son));
     }
+};
+
+Trie* NewTrie() {
+    Trie* temp = new Trie;
+    return temp;
 }
 
-int solve(int root)
-{
-    int len=strlen(a+1);int x=root;
-    for(int i=1;i<=len;i++)
-    {
-        int y=a[i]-'a'+1;
-        if(t[x].v[y]==-1)return 0;
-        x=t[x].v[y];
+void Inset(Trie* root, char* s) {
+    Trie* temp = root;
+    while (*s) {
+        if (temp->son[*s - base] == NULL) {
+            temp->son[*s - base] = NewTrie();
+        } else
+            temp->son[*s - base]->num++;
+        temp = temp->son[*s - base];
+        s++;
     }
-    return(t[x].s);
+    temp->flag = true;
 }
 
-int main()
-{
-    scanf("%d",&m);
-    for(int i=1;i<=m;i++)
-    {
-        scanf("%s",a+1);
-        bt(0);
+int search(Trie* root, char* s) {
+    Trie* temp = root;
+    while (*s) {
+        if (temp->son[*s - base] == NULL)
+            return 0;
+        temp = temp->son[*s - base];
+        s++;
+    }
+    return temp->num;
+}
+
+int main() {
+    Trie* root = NewTrie();
+    root->num = 0;
+    // while(cin.get(s1,12))
+    while (gets(s1) && strcmp(s1, "") != 0) {
+        // if(strcmp(s1," ")==0)
+        // break;
+        Inset(root, s1);
+    }
+    while (cin >> ss) {
+        int ans = search(root, ss);
+        cout << ans << endl;
     }
 
-    scanf("%d",&n);
-    for(int i=1;i<=n;i++)
-    {
-        scanf("%s",a+1);
-        printf("%d\n",solve(0));
-    }
+    return 0;
 }
 ```
 
-## 结语
+- [poj 2001 Shortest Prefixes](http://poj.org/problem?id=2001)
 
-通过这篇BLOG相信你已经掌握了Trie树，那就向着AC自动机前进吧！希望你喜欢这篇BLOG！
+　　题意：找出能唯一标示一个字符串的最短前缀，如果找不出，就输出该字符串。
+　　用字典树即可
+　　
+**代码如下：**
 
-> 字典树练习题：
-> HDU1251（本题原版）
-> HDU1075
-> HDU1800
+```c++
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+using namespace std;
 
-## 参考
+char list[1005][25];
 
-https://ethsonliu.com/2019/09/trie-tree.html
+struct node {
+    int count;
+    node* childs[26];
+    node() {
+        count = 0;
+        int i;
+        for (i = 0; i < 26; i++)
+            childs[i] = NULL;
+    }
+};
 
-https://oi-wiki.org/string/trie/
+node* root = new node;
+node *current, *newnode;
+
+void insert(char* str) {
+    int i, m;
+    current = root;
+    for (i = 0; i < strlen(str); i++) {
+        m = str[i] - 'a';
+        if (current->childs[m] != NULL) {
+            current = current->childs[m];
+            ++(current->count);
+        } else {
+            newnode = new node;
+            ++(newnode->count);
+            current->childs[m] = newnode;
+            current = newnode;
+        }
+    }
+}
+
+void search(char* str) {
+    int i, m;
+    char ans[25];
+    current = root;
+    for (i = 0; i < strlen(str); i++) {
+        m = str[i] - 'a';
+        current = current->childs[m];
+        ans[i] = str[i];
+        ans[i + 1] = '\0';
+        if (current->count == 1)  //可以唯一标示该字符串的前缀
+        {
+            printf("%s %s\n", str, ans);
+            return;
+        }
+    }
+    printf("%s %s\n", str, ans);  // 否则输出该字符串
+}
+
+int main() {
+    int i, t = 0;
+    while (scanf("%s", list[t]) != EOF) {
+        insert(list[t]);
+        t++;
+    }
+    for (i = 0; i < t; i++)
+        search(list[i]);
+    return 0;
+}
+```
+
+- [hdu 4825 Xor Sum](http://acm.hdu.edu.cn/showproblem.php?pid=4825)
+
+　　题意：给你一些数字，再询问Q个问题，每个问题给一个数字，使这个数字和之前给出的数字的异或和最大。
+　　构造字典树，高位在前，低位在后，然后顺着字典树根向深处递归查询
+
+
+**代码如下：**
+
+```cpp
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <functional>
+#include <iostream>
+#include <map>
+#include <queue>
+#include <set>
+#include <string>
+#include <vector>
+
+using namespace std;
+typedef long long LL;
+typedef pair<LL, int> PLI;
+
+const int MX = 2e5 + 5;
+const int INF = 0x3f3f3f3f;
+
+struct Node {
+    Node* Next[2];
+    Node() { Next[0] = Next[1] = NULL; }
+};
+
+void trie_add(Node* root, int S) {
+    Node* p = root;
+    for (int i = 31; i >= 0; i--) {
+        int id = ((S & (1 << i)) != 0);
+        if (p->Next[id] == NULL) {
+            p->Next[id] = new Node();
+        }
+        p = p->Next[id];
+    }
+}
+
+int trie_query(Node* root, int S) {
+    Node* p = root;
+    int ans = 0;
+    for (int i = 31; i >= 0; i--) {
+        int id = ((S & (1 << i)) != 0);
+        if (p->Next[id ^ 1] != NULL) {
+            ans |= (id ^ 1) << i;
+            p = p->Next[id ^ 1];
+        } else {
+            ans |= id << i;
+            p = p->Next[id];
+        }
+    }
+    return ans;
+}
+
+int main() {
+    // freopen("input.txt", "r", stdin);
+    int T, n, Q, t, ansk = 0;
+    scanf("%d", &T);
+    while (T--) {
+        scanf("%d%d", &n, &Q);
+        Node* root = new Node();
+
+        for (int i = 1; i <= n; i++) {
+            scanf("%d", &t);
+            trie_add(root, t);
+        }
+
+        printf("Case #%d:\n", ++ansk);
+        while (Q--) {
+            scanf("%d", &t);
+            printf("%d\n", trie_query(root, t));
+        }
+    }
+    return 0;
+}
+```

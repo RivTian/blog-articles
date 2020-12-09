@@ -59,9 +59,61 @@ ST 表基于 `倍增` 思想，可以做到 $\Theta(n\log n)$ 预处理， $\The
 
 根据上面对于“可重复贡献问题”的论证，由于最大值是“可重复贡献问题”，重叠并不会对区间最大值产生影响。又因为这两个区间完全覆盖了 $[l,r]$ ，可以保证答案的正确性。
 
-## 模板代码
+### 小结：
 
- [ST 表模板题](https://www.luogu.com.cn/problem/P3865) 
+稀疏表(SparseTable)算法是 $O(nlogn)-O(1)$ 的，对于查询很多大的情况下比较好。
+ST算法预处理：用 $dp[i,j]$ 表示从i开始的，长度为 $2^j $ 的区间的 RMQ ，则有递推式
+$$
+dp[i,j]=min{dp[i,j-1],dp[i+2j-1,j-1]}
+$$
+即用两个相邻的长度为 $2j-1$ 的块，更新长度为 $2j$ 的块。因此，预处理时间复杂度为 $O(nlogn)$。
+这个算法记录了所有长度形如 $2k$ 的所有询问的结果。
+从这里可以看出，稀疏表算法的空间复杂度为 $O(nlogn)$。
+
+#### **模板如下：**
+
+```cpp
+#include <cmath>
+#include <iostream>
+using namespace std;
+
+int a[50001];
+int f[50001][16];
+int n;
+
+void rmq_init()  //建立： dp(i,j) = min{dp(i,j-1),dp(i+2^(j-1),j-1)   O(nlogn)
+{
+    for (int i = 1; i <= n; i++)
+        f[i][0] = a[i];
+    int k = floor(log((double)n) / log(2.0));  // C/C++取整函数ceil()大,floor()小
+    for (int j = 1; j <= k; j++)
+        for (int i = n; i >= 1; i--) {
+            if (i + (1 << (j - 1)) <=
+                n)  // f(i,j) = min{f(i,j-1),f(i+2^(j-1),j-1)
+                f[i][j] = min(f[i][j - 1], f[i + (1 << (j - 1))][j - 1]);
+        }
+}
+
+int rmq(int i, int j)  //查询：返回区间[i,j]的最小值     O(1)
+{
+    int k = floor(log((double)(j - i + 1)) / log(2.0));
+    return min(f[i][k], f[j - (1 << k) + 1][k]);
+}
+
+int main() {
+    scanf("%d", &n);
+    for (int i = 1; i <= n; i++)
+        scanf("%d", &a[i]);
+    rmq_init();
+    printf("%d\n", rmq(2, 5));
+}
+```
+
+
+
+## 例题
+
+*  [ST 表模板题](https://www.luogu.com.cn/problem/P3865) 
 
 ```cpp
 #include<bits/stdc++.h>
@@ -101,6 +153,59 @@ int main() {
 	}
 }
 ```
+
+- [poj 3264 Balanced Lineup](http://poj.org/problem?id=3264)
+  　　题意：求区间的最大值和最小值。
+  　　这道题有很多种方法（比如线段树），用ST表代码简洁，详细代码如下：
+
+```cpp
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+#define N 100005
+using namespace std;
+int n, q, a[N];
+int mx[N][18], mn[N][18];
+void Rmq_Init() {
+    int m = floor(log((double)n) / log(2.0));
+    for (int i = 1; i <= n; i++)
+        mx[i][0] = mn[i][0] = a[i];
+    for (int i = 1; i <= m; i++)
+        for (int j = n; j; j--) {
+            mx[j][i] = mx[j][i - 1];
+            mn[j][i] = mn[j][i - 1];
+            if (j + (1 << (i - 1)) <= n) {
+                mx[j][i] = max(mx[j][i], mx[j + (1 << (i - 1))][i - 1]);
+                mn[j][i] = min(mn[j][i], mn[j + (1 << (i - 1))][i - 1]);
+            }
+        }
+}
+int Rmq_Query(int l, int r) {
+    int m = floor(log((double)(r - l + 1)) / log(2.0));
+    int Max = max(mx[l][m], mx[r - (1 << m) + 1][m]);
+    int Min = min(mn[l][m], mn[r - (1 << m) + 1][m]);
+    return Max - Min;
+}
+int main() {
+    while (scanf("%d%d", &n, &q) != EOF) {
+        for (int i = 1; i <= n; i++)
+            scanf("%d", &a[i]);
+        Rmq_Init();
+        while (q--) {
+            int l, r;
+            scanf("%d%d", &l, &r);
+            printf("%d\n", Rmq_Query(l, r));
+        }
+    }
+    return 0;
+}
+```
+
+
+
+
 
 ## 注意点
 

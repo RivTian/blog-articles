@@ -47,7 +47,7 @@ AC 自动机是 **以 Trie 的结构为基础** ，结合 **KMP 的思想** 建�
 
 然后就可以利用它进行多模式匹配了。
 
-> 不明白**trie**的同学可以 [点击这里学习](https://www.cnblogs.com/RioTian/p/13780487.html)
+> 不明白**trie**的同学可以 [点击这里学习](https://www.cnblogs.com/RioTian/p/14070740.html)
 >
 > 不了解**KMP**的同学可以[点击这里学习](https://www.cnblogs.com/RioTian/p/12686870.html)
 
