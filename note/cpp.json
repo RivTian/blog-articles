@@ -1,0 +1,83 @@
+{
+	"Codeforce": {
+		"prefix": "cf",
+		"body": [
+			"// Murabito-B ${CURRENT_YEAR_SHORT}/${CURRENT_MONTH}/${CURRENT_DATE}",
+			"#include <bits/stdc++.h>",
+			"using namespace std;",
+			"using ll = long long;",
+			"void solve() {",
+			"    ;$0",
+			"}",
+			"int main() {",
+			"    ios_base::sync_with_stdio(false), cin.tie(0);",
+			"    int _;",
+			"    for (cin >> _; _--;) solve();",
+			"    return 0;",
+			"}",
+		],
+		"description": "cf v3.0"
+	},
+	"vj": {
+		"prefix": "qq",
+		"body": [
+			"// Murabito-B ${CURRENT_YEAR_SHORT}/${CURRENT_MONTH}/${CURRENT_DATE}",
+			"#include <bits/stdc++.h>",
+			"using namespace std;",
+			"using ll = long long;",
+			"void solve() {",
+			"    ;$0",
+			"}",
+			"int main() {",
+			"    ios_base::sync_with_stdio(false), cin.tie(0);",
+			"    solve();",
+			"    return 0;",
+			"}"
+		],
+		"description": "vj v3.0"
+	},
+	"template": {
+		"prefix": "vj",
+		"body": [
+			"#include <bits/stdc++.h>",
+			"using namespace std;",
+			"#define all(s) (s.begint(), s.end())",
+			"typedef long long ll;",
+			"const double PI = acos(1e-6);",
+			"const double eps = 1e-6;",
+			"const int inf = 0x3f3f3f3f;",
+			"const int maxn = 1e5 + 10;",
+			"ll _, n, m, k;",
+			"void solve() {",
+			"    $0",
+			"}",
+			"int main() {",
+			"    // freopen(\"in.txt\",\"r\",stdin);",
+			"    ios::sync_with_stdio(false), cin.tie(0), cout.tie(0);",
+			"    for (cin >> _; _--;)",
+			"    solve();",
+			"    return 0;",
+			"}"
+		],
+		"description": "vj"
+	},
+	// "    // freopen(\"in.txt\",\"r\",stdin);",
+	"filein": {
+		"prefix": "in",
+		"body": [
+			"freopen(\"in.txt\", \"r\", stdin);",
+		],
+		"description": "in"
+	},
+	"Int_main": {
+		"prefix": "Main",
+		"body": [
+			"int main() {",
+			"    ios_base::sync_with_stdio(false), cin.tie(0);",
+			"    $0",
+			"    return 0;",
+			"}",
+		],
+		"description": "int main"
+	}
+}
