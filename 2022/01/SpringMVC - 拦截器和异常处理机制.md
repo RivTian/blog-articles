@@ -140,3 +140,4 @@ public class MyExceptionResolver implements HandlerExceptionResolver {
 <bean class="com.riotian.resolver.MyExceptionResolver"/>
 ```
 
+如果出现Crash，就可以进行统一处理了。
