@@ -1,303 +1,111 @@
 本文介绍 Spring 中 AOP 的原理及使用方式。
 
-## 引入
+## Spring AOP 简介
 
-在介绍 AOP 之前，假设我们有一个需求：在实现加减乘除功能的同时，满足：
+如果说 IoC 是 Spring 的核心，那么面向切面编程就是 Spring 最为重要的功能之一了，在数据库事务中切面编程被广泛使用。
 
-- 在程序执行期间追踪正在发生的活动；
-- 希望计算器只能处理正数运算。
+#### AOP 即 Aspect Oriented Program 面向切面编程
 
-有如下代码：
+首先，在面向切面编程的思想里面，把功能分为核心业务功能，和周边功能。
 
-```java
-public interface ArithmeticCalculator {
-    int add(int i, int j);
-    int sub(int i, int j);
-    int mul(int i, int j);
-    int div(int i, int j);
-}
-```
+- **所谓的核心业务**，比如登陆，增加数据，删除数据都叫核心业务
+- **所谓的周边功能**，比如性能统计，日志，事务管理等等
 
-```java
-public class ArithmeticCalculatorImpl implements ArithmeticCalculator {
-    public static final Logger LOGGER = LoggerFactory.getLogger(ArithmeticCalculator.class);
+周边功能在 Spring 的面向切面编程AOP思想里，即被定义为切面
 
-    @Override
-    public int add(int i, int j) {
-        LOGGER.info("The method add begins with [{}, {}]", i, j);
-        int result = i + j;
-        LOGGER.info("The method add ends with {}", result);
-        return result;
-    }
+在面向切面编程AOP的思想里面，核心业务功能和切面功能分别独立进行开发，然后把切面功能和核心业务功能 “编织” 在一起，这就叫AOP
 
-    @Override
-    public int sub(int i, int j) {
-        LOGGER.info("The method sub begins with [{}, {}]", i, j);
-        int result = i - j;
-        LOGGER.info("The method sub ends with {}", result);
-        return result;
-    }
+#### AOP 的目的
 
-    @Override
-    public int mul(int i, int j) {
-        LOGGER.info("The method mul begins with [{}, {}]", i, j);
-        int result = i * j;
-        LOGGER.info("The method mul ends with {}", result);
-        return result;
-    }
+AOP能够将那些与业务无关，**却为业务模块所共同调用的逻辑或责任（例如事务处理、日志管理、权限控制等）封装起来**，便于**减少系统的重复代码**，**降低模块间的耦合度**，并**有利于未来的可拓展性和可维护性**。
 
-    @Override
-    public int div(int i, int j) {
-        LOGGER.info("The method div begins with [{}, {}]", i, j);
-        int result = i / j;
-        LOGGER.info("The method div ends with {}", result);
-        return result;
-    }
-}
-```
+#### AOP 当中的概念：
+
+- 切入点（Pointcut）
+  在哪些类，哪些方法上切入（**where**）
+- 通知（Advice）
+  在方法执行的什么实际（**when:**方法前/方法后/方法前后）做什么（**what:**增强的功能）
+- 切面（Aspect）
+  切面 = 切入点 + 通知，通俗点就是：**在什么时机，什么地方，做什么增强！**
+- 织入（Weaving）
+  把切面加入到对象，并创建出代理对象的过程。（由 Spring 来完成）
+
+#### 一个例子
+
+为了更好的说明 AOP 的概念，我们来举一个实际中的例子来说明：
+
+<img src="https://cdn.jsdelivr.net/gh/RivTian/Blogimg/img/20220128130610.png" style="zoom: 33%;" />
+
+在上面的例子中，包租婆的核心业务就是签合同，收房租，那么这就够了，灰色框起来的部分都是重复且边缘的事，交给中介商就好了，这就是 **AOP 的一个思想：让关注点代码与业务代码分离！**
+
+#### 实际的代码
+
+我们来实际的用代码感受一下
+
+1.在 Package【com.riotian.pojo】下新建一个【Landlord】类（我百度翻译的包租婆的英文）：
 
 ```java
-public class Main {
-    public static void main(String[] args) {
-        ArithmeticCalculator arithmeticCalculator = new ArithmeticCalculatorImpl();
-        int result = arithmeticCalculator.add(1, 2);
-        System.out.println(result);
+package com.riotian.pojo;
 
-        result = arithmeticCalculator.sub(4, 2);
-        System.out.println(result);
+import org.springframework.stereotype.Component;
+
+@Component("landlord")
+public class Landload {
+
+    public void service() {
+        // 仅仅只是实现了核心的业务功能
+        System.out.println("签合同");
+        System.out.println("收房租");
     }
 }
 ```
 
-输出结果如下：
-
-```
-23:01:49.551 [main] INFO com.example.springdemo.aop.helloworld.ArithmeticCalculator - The method add begins with [1, 2]
-23:01:49.553 [main] INFO com.example.springdemo.aop.helloworld.ArithmeticCalculator - The method add ends with 3
-3
-23:01:49.553 [main] INFO com.example.springdemo.aop.helloworld.ArithmeticCalculator - The method sub begins with [4, 2]
-23:01:49.553 [main] INFO com.example.springdemo.aop.helloworld.ArithmeticCalculator - The method sub ends with 2
-2
-```
-
-可以看到，在上面的实现类中，「打印日志」的代码是十分相似的，并且当「打印日志」的代码与具体的「业务代码」放到一起时，「业务代码」的功能就显得不那么清晰了。不仅冗余的日志代码很多，而且上面的方法不是一种很好的实现方式。即：
-
-- 代码混乱：越来越多的非业务需求（日志和验证等）加入后，原有的业务方法急剧膨胀。每个方法在处理核心逻辑的同时还必须兼顾其他多个关注点。
-- 代码分散：以日志需求为例，只是为了满足这个单一的需求，就不得不在多个模块（方法）中多次重复写相同的日志代码。如果日志需求发生变化，必须修改所有模块。
-
-针对以上问题，可以使用基于动态代理的方式，完成 AOP 的功能。代理设计模式的原理是：**使用一个代理将对象包装起来**，然后用该代理对象取代原始对象。任何对原始对象的调用都需要通过代理。代理对象决定是否以及何时将方法调用转到原始对象上。
-
-### 使用动态代理实现
+2.在 Package【com.riotian.aspect】下新建一个中介商【Broker】类（我还是用的翻译…）：
 
 ```java
-public class ArithmeticCalculatorImpl implements ArithmeticCalculator {
-    public static final Logger LOGGER = LoggerFactory.getLogger(ArithmeticCalculator.class);
+package com.riotian.aspect;
 
-    @Override
-    public int add(int i, int j) {
-        int result = i + j;
-        return result;
-    }
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.stereotype.Component;
 
-    @Override
-    public int sub(int i, int j) {
-        int result = i - j;
-        return result;
-    }
-
-    @Override
-    public int mul(int i, int j) {
-        int result = i * j;
-        return result;
-    }
-
-    @Override
-    public int div(int i, int j) {
-        int result = i / j;
-        return result;
-    }
-}
-```
-
-```java
-public class ArithmeticCalculatorLoggingProxy {
-
-    // 要代理的对象
-    private ArithmeticCalculator target;
-
-    public ArithmeticCalculatorLoggingProxy(ArithmeticCalculator target) {
-        this.target = target;
-    }
-
-    public ArithmeticCalculator getLoggingProxy() {
-        ArithmeticCalculator proxy = null;
-
-        // 代理对象与普通对象不同，普通对象直接 new 出来即可，此时 JVM 有默认的类加载器，
-        // 而现在的对象是自己代理出来的，需要确定代理对象由哪个类加载器进行加载
-        ClassLoader loader = target.getClass().getClassLoader();
-        // 代理对象的类型，即其中有哪些方法
-        Class[] interfaces = new Class[]{ArithmeticCalculator.class};
-        // 当调用代理对象的方法时，所执行的代码就在 InvocationHandler 中
-        InvocationHandler handler = new InvocationHandler() {
-            /**
-             * @param proxy 正在返回的那个代理对象，一般情况下在 invoke 方法中都不使用该对象
-             * @param method 正在被调用的方法
-             * @param args 调用方法时传入的参数
-             * @return
-             * @throws Throwable
-             */
-            @Override
-            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                String methodName = method.getName();
-                // 日志
-                System.out.println("The method " + methodName + " begins with " + Arrays.asList(args));
-                // 执行方法
-                Object result = method.invoke(target, args);
-                // 日志
-                System.out.println("The method " + methodName + " ends with " + result);
-                return result;
-            }
-        };
-        proxy = (ArithmeticCalculator) Proxy.newProxyInstance(loader, interfaces, handler);
-
-        return proxy;
-    }
-}
-```
-
-```java
-public class Main {
-    public static void main(String[] args) {
-        ArithmeticCalculator target = new ArithmeticCalculatorImpl();
-
-        ArithmeticCalculator proxy = new ArithmeticCalculatorLoggingProxy(target).getLoggingProxy();
-
-        int result = proxy.add(1, 2);
-        System.out.println(result);
-
-        proxy.sub(4, 2);
-        System.out.println(result);
-    }
-}
-```
-
-输出结果如下所示：
-
-```
-The method add begins with [1, 2]
-The method add ends with 3
-3
-The method sub begins with [4, 2]
-The method sub ends with 2
-3
-```
-
-从结果中可以看到，「业务代码」是简洁的，我们使用动态代理的方式，实现了打印日志的功能。但是这种方式在实际开发中较为繁琐，需要写较多代码。而我们用得最多的就是通过 AOP 的方式进行实现。
-
-## AOP
-
-AOP（Aspect-Oriented Programming, **面向切面编程**）是一种新的方法论，是对传统 OOP（Object-Oriented Programming, 面向对象编程）的补充。
-
-AOP 的主要编程对象是**切面**，而**切面模块化横切关注点**。
-
-在使用 AOP 编程时，仍然需要定义公共功能，但可以明确的定义这个功能在哪里，以什么方式应用，并且不需要修改受影响的类。这样的话，**横切关注点就被模块化到特殊的对象（切面）里了**。其好处在于：
-
-- 每个事物的逻辑位于一个位置，代码不分散，便于维护和升级。
-- 业务模块更简洁，只包含核心业务代码。
-
-与 AOP 相关的的术语如下：
-
-- 切面（Aspect）：**横切关注点（跨越应用程序多个模块的功能）被模块化的特殊对象**。
-
-- 通知（Advice）：**切面必须要完成的工作**。
-
-- 目标（Target）：**被通知的对象**。
-
-- 代理（Proxy）：**向目标对象应用通知之后所创建的对象**。
-
-- 连接点（JoinPoint）：
-
-  程序执行的某个特定位置
-
-  。例如，类中某个方法调用前、调用后、方法抛出异常后等。
-
-  - 连接点由两个信息确定：方法表示的程序执行点和相对点表示的方位。例如，ArithmeticCalculator#add()方法执行前的连接点，执行点为 ArithmeticCalculator#add()；**方位**为该方法执行前的位置。
-
-- 切点（PointCut）：每个类都有多个连接点。例如，ArithmeticCalculator 的所有方法实际上都是连接点，即
-
-  连接点是程序类中客观存在的事务
-
-  。AOP 通过切点定位到特定的连接点。
-
-  - 例如，连接点相当于数据库中的记录，切点相当于查询条件。
-  - 切点和连接点不是一对一的关系，一个切点匹配多个连接点。切点通过 org.springframework.aop.Pointcut 接口进行描述，它使用类和方法作为连接点的查询条件。
-
-代码如下所示：
-
-```java
-public interface ArithmeticCalculator {
-
-    int add(int i, int j);
-
-    int sub(int i, int j);
-
-    int mul(int i, int j);
-
-    int div(int i, int j);
-}
-```
-
-```java
-@Component("arithmeticCalculator")
-public class ArithmeticCalculatorImpl implements ArithmeticCalculator {
-
-    @Override
-    public int add(int i, int j) {
-        int result = i + j;
-        return result;
-    }
-
-    @Override
-    public int sub(int i, int j) {
-        int result = i - j;
-        return result;
-    }
-
-    @Override
-    public int mul(int i, int j) {
-        int result = i * j;
-        return result;
-    }
-
-    @Override
-    public int div(int i, int j) {
-        int result = i / j;
-        return result;
-    }
-}
-```
-
-```java
-/**
- * 把该类声明为切面
- * 1. 需要把该类放入到 IoC 容器中；
- * 2. 然后添加一个切面注解
- *
- * @date 2021/07/28
- */
-@Aspect
 @Component
-public class LoggingAspect {
+@Aspect
+public class Broker {
 
-    // 前置通知：在目标方法开始之前执行
-    @Before("execution(public int com.example.springdemo.aop.impl.ArithmeticCalculator.add(int, int))")
-    public void beforeMethod(JoinPoint joinPoint) {
-        String methodName = joinPoint.getSignature().getName();
-        List<Object> args = Arrays.asList(joinPoint.getArgs());
-        System.out.println("The method " + methodName + "begins with " + args);
+    @Before("execution(* com.riotian.pojo.Landload.service())")
+    public void before() {
+        System.out.println("带租客看房");
+        System.out.println("谈价格");
+    }
+
+    @After("execution(* com.riotian.pojo.Landload.service())")
+    public void after() {
+        System.out.println("交钥匙");
     }
 }
 ```
+
+使用 `@Aspect` 之前需要导包
+
+```xml
+<dependency>
+    <groupId>org.aspectj</groupId>
+    <artifactId>aspectjweaver</artifactId>
+    <version>1.9.6</version>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-aop</artifactId>
+	<version>5.2.5.RELEASE</version>
+</dependency>
+```
+
+
+
+3.在 applicationContext.xml 中配置自动注入，并告诉 Spring IoC 容器去哪里扫描这两个 Bean：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -305,216 +113,246 @@ public class LoggingAspect {
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns:context="http://www.springframework.org/schema/context"
        xmlns:aop="http://www.springframework.org/schema/aop"
-       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd">
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+    
+    <context:component-scan base-package="com.riotian.pojo"/>
+    <context:component-scan base-package="com.riotian.aspect"/>
 
-    <!-- 配置自动扫描的包 -->
-    <context:component-scan base-package="com.example.springdemo.aop.impl"/>
-
-    <!-- 使 AspectJ 注解起作用：自动为匹配的类生成代理对象 -->
     <aop:aspectj-autoproxy/>
 </beans>
 ```
 
-```java
-public class Main {
-    public static void main(String[] args) {
-        // 创建 Spring 的 IoC 容器
-        ApplicationContext context = new ClassPathXmlApplicationContext("applicationContextAop.xml");
-        // 从容器中获取 bean 的实例
-        ArithmeticCalculator arithmeticCalculator = (ArithmeticCalculator) context.getBean("arithmeticCalculator");
-        // 使用 bean
-        int result = arithmeticCalculator.add(1, 2);
-        System.out.println("add result: " + result);
+4.在 Package【test】下编写测试代码：
 
-        result = arithmeticCalculator.div(9 , 3);
-        System.out.println("div result: " + result);
-    }
+```java
+@Test
+public void TestAop() {
+    ApplicationContext app = new ClassPathXmlApplicationContext("applicationContext.xml");
+    Landload landlord = app.getBean("landlord", Landload.class);
+    landlord.service();
 }
 ```
 
-输出结果如下：
+5.执行看到效果：
 
-```
-The method addbegins with [1, 2]
-add result: 3
-div result: 3
-```
+![](https://cdn.jsdelivr.net/gh/RivTian/Blogimg/img/20220128132602.png)
 
-如果想要让 ArithmeticCalculator 接口中的所有方法都设置前置通知的话，则可以将`@Before`注解中的`add`方法用通配符`*`替换，如下所示：
+这个例子使用了一些注解，现在看不懂没有关系，但我们可以从上面可以看到，我们在 Landlord 的 service() 方法中仅仅实现了核心的业务代码，其余的关注点功能是根据我们设置的切面**自动补全**的。
 
-```java
-@Before("execution(public int com.example.springdemo.aop.impl.ArithmeticCalculator.*(int, int))")
-```
+## 使用注解来开发 Spring AOP
 
-输出结果如下所示：
+使用注解的方式已经逐渐成为了主流，所以我们利用上面的例子来说明如何用注解来开发 Spring AOP
 
-```
-The method addbegins with [1, 2]
-add result: 3
-The method divbegins with [9, 3]
-div result: 3
-```
+#### 第一步：选择连接点
 
-其中，AspectJ 支持 5 中类型的通知注解：
-
-- @Before：前置通知，在目标方法执行前执行。
-- @After：后置通知，在目标方法执行后（无论是否发生异常）执行。
-  - 在后置通知中，还不能访问目标方法执行的结果。
-- @AfterReturning：返回通知，在目标方法返回结果之后执行。
-- @AfterThrowing：异常通知，在目标方法抛出异常之后执行。
-- @Around：环绕通知，围绕着目标方法执行。
-
-针对**切入点表达式**，如果将其修改为`@Before("execution(* ArithmeticCalculator.add(..))")`，则其中`*`代表匹配任意修饰符及任意返回值，参数列表中的`..`表示匹配任意数量的参数。也就是说，切入点表达式是根据方法的签名来匹配各种方法的。
-
-此外，可以在通知方法中声明一个类型为 JoinPoint 的参数，然后就可以访问方法的名称或者参数值了。
-
-下面将剩余的其他通知类型进行说明：
+Spring 是方法级别的 AOP 框架，我们主要也是以某个类额某个方法作为连接点，另一种说法就是：**选择哪一个类的哪一方法用以增强功能。**
 
 ```java
-@Aspect
+....
+public void service() {
+    // 仅仅只是实现了核心的业务功能
+    System.out.println("签合同");
+    System.out.println("收房租");
+}
+....
+```
+
+我们在这里就选择上述 Landlord 类中的 service() 方法作为连接点。
+
+#### 第二步：创建切面
+
+选择好了连接点就可以创建切面了，我们可以把切面理解为一个拦截器，当程序运行到连接点的时候，被拦截下来，在开头加入了初始化的方法，在结尾也加入了销毁的方法而已，在 Spring 中只要使用 `@Aspect` 注解一个类，那么 Spring IoC 容器就会认为这是一个切面了：
+
+```java
+package com.riotian.aspect;
+
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.stereotype.Component;
+
 @Component
-public class LoggingAspect {
+@Aspect
+public class Broker {
 
-    // 前置通知：在目标方法开始之前执行
-    @Before("execution(public int com.example.springdemo.aop.impl.ArithmeticCalculator.*(int, int))")
-    public void beforeMethod(JoinPoint joinPoint) {
-        String methodName = joinPoint.getSignature().getName();
-        List<Object> args = Arrays.asList(joinPoint.getArgs());
-        System.out.println("beforeMethod: The method " + methodName + " begins with " + args);
+    @Before("execution(* com.riotian.pojo.Landload.service())")
+    public void before() {
+        System.out.println("带租客看房");
+        System.out.println("谈价格");
     }
 
-    // 在后置通知中，还不能访问目标方法执行的结果
-    @After("execution(public int com.example.springdemo.aop.impl.ArithmeticCalculator.*(int, int))")
-    public void afterMethod(JoinPoint joinPoint) {
-        String methodName = joinPoint.getSignature().getName();
-        List<Object> args = Arrays.asList(joinPoint.getArgs());
-        System.out.println("afterMethod: The method " + methodName + " ends with " + args);
-    }
-
-    // 返回通知：在目标方法返回结果之后执行
-    // 返回通知是可以访问到方法的返回值的
-    @AfterReturning(value = "execution(public int com.example.springdemo.aop.impl.ArithmeticCalculator.*(int, int))", returning = "result")
-    public void afterReturningMethod(JoinPoint joinPoint, Object result) {
-        String methodName = joinPoint.getSignature().getName();
-        System.out.println("afterReturningMethod: The method " + methodName + " ends with " + result);
-    }
-
-
-    // 异常通知
-    @AfterThrowing(value = "execution(public int com.example.springdemo.aop.impl.ArithmeticCalculator.*(int, int))", throwing = "exception")
-    public void afterThrowingMethod(JoinPoint joinPoint, Exception exception) {
-        String methodName = joinPoint.getSignature().getName();
-        System.out.println("afterThrowingMethod: The method " + methodName + " occurs exception: " + exception);
-    }
-
-    // 环绕通知需要携带 ProceedingJoinPoint 类型的参数
-    // 环绕通知类似于动态代理的全过程：ProceedingJoinPoint 类型的参数可以决定是否执行目标方法
-    // 且环绕通知必须有返回值，返回值即为目标方法的返回值
-    @Around(value = "execution(public int com.example.springdemo.aop.impl.ArithmeticCalculator.*(int, int))")
-    public Object aroundMethod(ProceedingJoinPoint proceedingJoinPoint) {
-
-        Object result = null;
-        String methodName = proceedingJoinPoint.getSignature().getName();
-
-        // 执行目标方法
-        try {
-            // 前置通知
-            System.out.println("The method " + methodName + " begins with" + Arrays.asList(proceedingJoinPoint.getArgs()));
-            result = proceedingJoinPoint.proceed();
-            // 返回通知
-            System.out.println("The method " + methodName + " ends with result: " + result);
-        } catch (Throwable throwable) {
-            // 异常通知
-            System.out.println("The method " + methodName + " occurs exception: " + throwable);
-            throw new RuntimeException(throwable);
-        }
-        // 后置通知
-        System.out.println("The method " + methodName + " ends");
-
-        return result;
+    @After("execution(* com.riotian.pojo.Landload.service())")
+    public void after() {
+        System.out.println("交钥匙");
     }
 }
 ```
 
-对于**环绕通知**，虽然它的功能是最强的，即类似于动态代理的方式，但是并不代表是经常使用的。
+- **注意：** 被定义为切面的类仍然是一个 Bean ，需要 `@Component` 注解标注
 
-### 切面的优先级
+代码部分中在方法上面的注解看名字也能猜出个大概，下面来列举一下 Spring 中的 AspectJ 注解：
 
-可以在切面类上添加一个`@Order()`注解，值越小，则优先级越高。
+| 注解              | 说明                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| `@Before`         | 前置通知，在连接点方法前调用                                 |
+| `@Around`         | 环绕通知，它将覆盖原有方法，但是允许你通过反射调用原有方法，后面会讲 |
+| `@After`          | 后置通知，在连接点方法后调用                                 |
+| `@AfterReturning` | 返回通知，在连接点方法执行并正常返回后调用，要求连接点方法在执行过程中没有发生异常 |
+| `@AfterThrowing`  | 异常通知，当连接点方法异常时调用                             |
 
-此外，还可以复用切入点表达式，直接新建一个方法，然后使用`@Pointcut()`注解即可，如下所示：
+有了上表，我们就知道 before() 方法是连接点方法调用前调用的方法，而 after() 方法则相反，这些注解中间使用了定义切点的正则式，也就是告诉 Spring AOP 需要拦截什么对象的什么方法，下面讲到。
+
+#### 第三步：定义切点
+
+在上面的注解中定义了 execution 的正则表达式，Spring 通过这个正则表达式判断具体要拦截的是哪一个类的哪一个方法：
 
 ```java
-@Order(1)
-@Aspect
+execution(* pojo.Landlord.service())
+```
+
+依次对这个表达式作出分析：
+
+- execution：代表执行方法的时候会触发
+- `*` ：代表任意返回类型的方法
+- pojo.Landlord：代表类的全限定名
+- service()：被拦截的方法名称
+
+通过上面的表达式，Spring 就会知道应该拦截 pojo.Lnadlord 类下的 service() 方法。上面的演示类还好，如果多出都需要写这样的表达式难免会有些复杂，我们可以通过使用 `@Pointcut` 注解来定义一个切点来避免这样的麻烦：
+
+```java
+package com.riotian.aspect;
+
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.stereotype.Component;
+
 @Component
-public class LoggingAspect {
+@Aspect
+public class Broker {
 
-    // 定义一个方法，用于声明切入点表达式
-    // 一般情况下，该方法中不需要再加入其他代码
-    @Pointcut("execution(public int com.example.springdemo.aop.impl.ArithmeticCalculator.*(int, int))")
-    public void declareJoinPointExpression() {
+    @Pointcut("execution(* com.riotian.pojo.Landload.service())")
+    public void lService() {
 
     }
 
-    // 前置通知：在目标方法开始之前执行
-    @Before("declareJoinPointExpression()")
-    public void beforeMethod(JoinPoint joinPoint) {
-        String methodName = joinPoint.getSignature().getName();
-        List<Object> args = Arrays.asList(joinPoint.getArgs());
-        System.out.println("beforeMethod: The method " + methodName + " begins with " + args);
+    @Before("lService()")
+    public void before() {
+        System.out.println("带租客看房");
+        System.out.println("谈价格");
     }
 
-    // 在后置通知中，还不能访问目标方法执行的结果
-    @After("declareJoinPointExpression()")
-    public void afterMethod(JoinPoint joinPoint) {
-        String methodName = joinPoint.getSignature().getName();
-        List<Object> args = Arrays.asList(joinPoint.getArgs());
-        System.out.println("afterMethod: The method " + methodName + " ends with " + args);
-    }
-
-    // 返回通知：在目标方法返回结果之后执行
-    // 返回通知是可以访问到方法的返回值的
-    @AfterReturning(value = "declareJoinPointExpression()", returning = "result")
-    public void afterReturningMethod(JoinPoint joinPoint, Object result) {
-        String methodName = joinPoint.getSignature().getName();
-        System.out.println("afterReturningMethod: The method " + methodName + " ends with " + result);
-    }
-
-
-    // 异常通知
-    @AfterThrowing(value = "declareJoinPointExpression()", throwing = "exception")
-    public void afterThrowingMethod(JoinPoint joinPoint, Exception exception) {
-        String methodName = joinPoint.getSignature().getName();
-        System.out.println("afterThrowingMethod: The method " + methodName + " occurs exception: " + exception);
-    }
-
-    // 环绕通知需要携带 ProceedingJoinPoint 类型的参数
-    // 环绕通知类似于动态代理的全过程：ProceedingJoinPoint 类型的参数可以决定是否执行目标方法
-    // 且环绕通知必须有返回值，返回值即为目标方法的返回值
-    @Around("declareJoinPointExpression()")
-    public Object aroundMethod(ProceedingJoinPoint proceedingJoinPoint) {
-
-        Object result = null;
-        String methodName = proceedingJoinPoint.getSignature().getName();
-
-        // 执行目标方法
-        try {
-            // 前置通知
-            System.out.println("The method " + methodName + " begins with" + Arrays.asList(proceedingJoinPoint.getArgs()));
-            result = proceedingJoinPoint.proceed();
-            // 返回通知
-            System.out.println("The method " + methodName + " ends with result: " + result);
-        } catch (Throwable throwable) {
-            // 异常通知
-            System.out.println("The method " + methodName + " occurs exception: " + throwable);
-            throw new RuntimeException(throwable);
-        }
-        // 后置通知
-        System.out.println("The method " + methodName + " ends");
-
-        return result;
+    @After("lService()")
+    public void after() {
+        System.out.println("交钥匙");
     }
 }
 ```
 
+#### 第四步：测试 AOP
+
+编写测试代码，但是我这里因为 JDK 版本不兼容出现了 BUG….（尴尬…）
+
+这就告诉我们：环境配置很重要…不然莫名其妙的 BUG 让你崩溃…
+
+#### 环绕通知
+
+我们来探讨一下环绕通知，这是 Spring AOP 中最强大的通知，因为它集成了前置通知和后置通知，它保留了连接点原有的方法的功能，所以它及强大又灵活，让我们来看看：
+
+```java
+package com.riotian.aspect;
+
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.*;
+import org.springframework.stereotype.Component;
+
+//@Component
+//@Aspect
+public class Broker {
+
+//  注释掉之前的 @Before 和 @After 注解以及对应的方法
+//    @Before("execution(* com.riotian.pojo.Landload.service())")
+//    public void before() {
+//        System.out.println("带租客看房");
+//        System.out.println("谈价格");
+//    }
+//
+//    @After("execution(* com.riotian.pojo.Landload.service())")
+//    public void after() {
+//        System.out.println("交钥匙");
+//    }
+
+    //  使用 @Around 注解来同时完成前置和后置通知
+    //@Around("execution(* com.riotian.pojo.Landload.service())")
+    public void around(ProceedingJoinPoint joinPoint) {
+        System.out.println("带租客看房");
+        System.out.println("谈价格");
+
+        try {
+            joinPoint.proceed();
+        } catch (Throwable throwable) {
+            throwable.printStackTrace();
+        }
+
+        System.out.println("交钥匙");
+    }
+}
+```
+
+运行测试代码，结果仍然正确：
+
+![](https://cdn.jsdelivr.net/gh/RivTian/Blogimg/img/20220128133310.png)
+
+
+
+## 使用 XML 配置开发 Spring AOP
+
+注解是很强大的东西，但基于 XML 的开发我们仍然需要了解，我们先来了解一下 AOP 中可以配置的元素：
+
+| AOP 配置元素          | 用途                             | 备注                       |
+| --------------------- | -------------------------------- | -------------------------- |
+| `aop:advisor`         | 定义 AOP 的通知其                | 一种很古老的方式，很少使用 |
+| `aop:aspect`          | 定义一个切面                     | ——                         |
+| `aop:before`          | 定义前置通知                     | ——                         |
+| `aop:after`           | 定义后置通知                     | ——                         |
+| `aop:around`          | 定义环绕通知                     | ——                         |
+| `aop:after-returning` | 定义返回通知                     | ——                         |
+| `aop:after-throwing`  | 定义异常通知                     | ——                         |
+| `aop:config`          | 顶层的 AOP 配置元素              | AOP 的配置是以它为开始的   |
+| `aop:declare-parents` | 给通知引入新的额外接口，增强功能 | ——                         |
+| `aop:pointcut`        | 定义切点                         | ——                         |
+
+有了之前通过注解来编写的经验，并且有了上面的表，我们将上面的例子改写成 XML 配置很容易（去掉所有的注解）：
+
+```xml
+<!-- 装配 Bean-->
+<bean name="landlord" class="com.riotian.pojo.Landload"/>
+<bean id="broker" class="com.riotian.aspect.Broker"/>
+
+<!-- 配置AOP -->
+<aop:config>
+    <!-- where：在哪些地方（包.类.方法）做增加 -->
+    <aop:pointcut id="landlorddPoint" expression="execution(* com.riotian.pojo.Landload.service())"/>
+    <!-- what:做什么增强 -->
+    <aop:aspect id="logAspect" ref="broker">
+        <!-- when:在什么时机（方法前/后/前后） -->
+        <aop:around method="around" pointcut-ref="landlorddPoint"/>
+    </aop:aspect>
+</aop:config>
+```
+
+运行测试程序，看到正确结果：
+
+![](https://cdn.jsdelivr.net/gh/RivTian/Blogimg/img/20220128133310.png)
+
+
+
+> 扩展阅读：[Spring【AOP模块】就这么简单](https://mp.weixin.qq.com/s?__biz=MzI4Njg5MDA5NA==&mid=2247483954&idx=1&sn=b34e385ed716edf6f58998ec329f9867&chksm=ebd74333dca0ca257a77c02ab458300ef982adff3cf37eb6d8d2f985f11df5cc07ef17f659d4#rd) 、 [关于 Spring AOP(AspectJ)你该知晓的一切（慎独读，有些深度…）](https://zhuanlan.zhihu.com/p/25522841)
+
+#### 参考资料：
+
+- 《Java EE 互联网轻量级框架整合开发》
+- 《Java 实战（第四版）》
+- 万能的百度 and 万能的大脑
