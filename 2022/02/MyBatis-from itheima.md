@@ -928,7 +928,27 @@ public class AccountServiceImpl implements AccountService {
 
 2. A child container failed during start
 
-   使用 maven 配置 tomcat7 运行一直报这个错误，还没有找到好的解决方法
+   ~~使用 maven 配置 tomcat7 运行一直报这个错误，还没有找到好的解决方法~~
+   
+   解决方法：pom.xml文件中servlet-api和jsp-api的坐标中缺少了scope，加载 \<scrop>就可以了
+   
+   ```xml
+   <!--Servlet - JSP -->
+   <dependency>
+       <groupId>javax.servlet</groupId>
+       <artifactId>servlet-api</artifactId>
+       <version>2.5</version>
+       <scope>provided</scope>
+   </dependency>
+   <dependency>
+       <groupId>javax.servlet.jsp</groupId>
+       <artifactId>jsp-api</artifactId>
+       <version>2.2</version>
+       <scope>provided</scope>
+   </dependency>
+   ```
+   
+   
 
 还有意识到，idea的maven工程，代码有错调试，重新部署tomcat服务器时间好长。
 这个问题一定要解决，不然每次改代码，重新部署，刷新，调试，时间太长。
