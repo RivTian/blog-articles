@@ -10,7 +10,7 @@ git push origin HEAD --force # 强制提交至远端仓库
 
 ## git submodule
 
-> [参考链接 🔗](https://iphysresearch.github.io/blog/post/programing/git/git_submodule/)
+> [参考链接 🔗](git_submodule_wiki.md)
 
 ```sh
 # 子模块的添加
