@@ -184,6 +184,16 @@ git config format.pretty oneline
 git add -i
 ```
 
+### git 回滚到某次提交
+
+```sh
+git log # 查询 commit id
+
+git reset --hard "commit id"
+
+git push origin HEAD --force # 强制提交至远端仓库
+```
+
 ### 指南与手册
 
 - [Git 社区参考书](http://book.git-scm.com/)
